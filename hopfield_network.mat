@@ -1,0 +1,74 @@
+% Load training data with 'char3' variable.
+load('characters.mat');
+% Initialize weight matrix. N=144 for flattened 12x12 matrix.
+N = 144;
+W = zeros(N, N);
+
+
+% Reshape each 12x12 matrix to 1x144 array
+for cell = 1:length(char3)
+    pattern = double(reshape(char3{cell}, 1, []));
+    % Update 0s and 1s to -1s and 1s for classification
+    pattern = 2 * pattern - 1;
+    %disp(pattern);
+    W = W + pattern' * pattern;
+end
+
+% Set W's diagonal to zeros
+W(1:N+1:end) = 0;
+
+% Load test data with 'test' variable.
+load('test.mat');
+energies = [];
+errors = [];
+
+% Update energies and errors arrays
+for cell = 1:length(test)
+    % Reshape to 1x144
+    query = double(reshape(test{cell}, 1, []));
+    %disp(query);
+    [new_query, energy] = update(query, W);
+    energies(end + 1) = energy;
+    errors(end + 1) = sum(abs(new_query - query));
+    %disp(energy);
+    imshow(reshape(new_query, [12, 12]));
+    % Pause for 1 second to show the image
+    pause(1);
+end
+
+% Plot the errors array
+figure;
+plot(errors);
+title('Error per Pattern');
+xlabel('Pattern Number');
+ylabel('Error');
+
+% Plot the energies array
+figure;
+plot(energies);
+title('Energy per Step');
+xlabel('Step');
+ylabel('Energy');
+
+% Function to perform the asynchronous update
+function [new_query, energy] = update(query, W)
+    new_query = query;
+
+    for step = 1:100
+        previous_query = new_query;
+        for i = randperm(length(query))
+            updated_value = W(:, i)' * new_query';
+            if updated_value >= 0
+                new_query(i) = 1;
+            else
+                new_query(i) = 0;
+            end
+            %disp(new_query(i));
+        end
+        % Break out of loop when query stabilizes
+        if isequal(previous_query, new_query)
+            break;
+        end
+    end
+    energy = -0.5 * sum(sum(W .* (new_query' * new_query)));
+end
